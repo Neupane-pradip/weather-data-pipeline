@@ -1,0 +1,13 @@
+# Python virtual environments
+.venv/
+venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Local secrets
+.env
+
+# PyCharm settings
+.idea/
