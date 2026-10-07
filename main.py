@@ -4,7 +4,22 @@ from datetime import datetime, timezone
 
 import requests
 import psycopg
+import logging
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(
+            Path(__file__).resolve().parent / "pipeline.log",
+            encoding="utf-8",
+        ),
+    ],
+)
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -82,7 +97,7 @@ def fetch_weather(latitude, longitude):
     return response.json()
 
 def main():
-    print("Weather pipeline project started!")
+    logger.info("Weather pipeline started.")
 
     cities = [
         {
@@ -104,29 +119,58 @@ def main():
 
     inserted_count = 0
     skipped_count = 0
+    failed_count = 0
 
     for city in cities:
-        print(f"Fetching weather for {city['name']}...")
+        city_name = city["name"]
+        logger.info("Fetching weather for %s...", city_name)
 
-        data = fetch_weather(
-            city["latitude"],
-            city["longitude"],
-        )
+        try:
+            data = fetch_weather(
+                city["latitude"],
+                city["longitude"],
+            )
 
-        weather_record = transform_weather(data, city["name"])
-        record_id = save_weather(weather_record)
+            weather_record = transform_weather(data, city_name)
+            record_id = save_weather(weather_record)
+
+        except requests.exceptions.RequestException:
+            failed_count += 1
+            logger.exception("%s: API request failed.", city_name)
+            continue
+
+        except psycopg.Error:
+            failed_count += 1
+            logger.exception("%s: database operation failed.", city_name)
+            continue
+
+        except (KeyError, ValueError, TypeError):
+            failed_count += 1
+            logger.exception(
+                "%s: invalid data or missing configuration.",
+                city_name,
+            )
+            continue
 
         if record_id is None:
             skipped_count += 1
-            print(f"{city['name']}: skipped duplicate.")
+            logger.info("%s: skipped duplicate.", city_name)
         else:
             inserted_count += 1
-            print(f"{city['name']}: saved record ID {record_id}.")
+            logger.info(
+                "%s: saved record ID %s.",
+                city_name,
+                record_id,
+            )
 
-    print(
-        f"Batch finished: {inserted_count} inserted, "
-        f"{skipped_count} duplicates skipped."
+    logger.info(
+        "Batch finished: %s inserted, %s skipped, %s failed.",
+        inserted_count,
+        skipped_count,
+        failed_count,
     )
 
+    return 1 if failed_count else 0
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
