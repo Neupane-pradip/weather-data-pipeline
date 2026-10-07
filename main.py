@@ -65,12 +65,7 @@ def save_weather(weather_record):
 
     return inserted_row[0]
 
-def main():
-    print("Weather pipeline project started!")
-
-    city = "Helsinki"
-    latitude = 60.1699
-    longitude = 24.9384
+def fetch_weather(latitude, longitude):
     url = "https://api.open-meteo.com/v1/forecast"
 
     params = {
@@ -84,21 +79,54 @@ def main():
     response = requests.get(url, params=params, timeout=20)
     response.raise_for_status()
 
-    data = response.json()
+    return response.json()
 
-    weather_record = transform_weather(data, city)
+def main():
+    print("Weather pipeline project started!")
 
-    record_id = save_weather(weather_record)
+    cities = [
+        {
+            "name": "Helsinki",
+            "latitude": 60.1699,
+            "longitude": 24.9384,
+        },
+        {
+            "name": "London",
+            "latitude": 51.5074,
+            "longitude": -0.1278,
+        },
+        {
+            "name": "Berlin",
+            "latitude": 52.5200,
+            "longitude": 13.4050,
+        },
+    ]
 
-    if record_id is None:
-        print("Record already exists; skipped duplicate.")
-    else:
-        print(f"Weather record saved with ID: {record_id}")
+    inserted_count = 0
+    skipped_count = 0
 
-    print(f"Weather record for {city}: {weather_record}")
-    print("Timestamp type:", type(weather_record["weather_time_utc"]))
-    print("Temperature type:", type(weather_record["temperature_c"]))
+    for city in cities:
+        print(f"Fetching weather for {city['name']}...")
 
+        data = fetch_weather(
+            city["latitude"],
+            city["longitude"],
+        )
+
+        weather_record = transform_weather(data, city["name"])
+        record_id = save_weather(weather_record)
+
+        if record_id is None:
+            skipped_count += 1
+            print(f"{city['name']}: skipped duplicate.")
+        else:
+            inserted_count += 1
+            print(f"{city['name']}: saved record ID {record_id}.")
+
+    print(
+        f"Batch finished: {inserted_count} inserted, "
+        f"{skipped_count} duplicates skipped."
+    )
 
 if __name__ == "__main__":
     main()
