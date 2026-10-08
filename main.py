@@ -82,8 +82,11 @@ def save_weather(weather_record):
 
     return inserted_row[0]
 
-def fetch_weather(latitude, longitude):
-    url = "https://api.open-meteo.com/v1/forecast"
+def fetch_weather(
+    latitude,
+    longitude,
+    url="https://api.open-meteo.com/v1/forecast",
+):
 
     params = {
         "latitude": latitude,
@@ -106,6 +109,7 @@ def fetch_weather(latitude, longitude):
 
     with requests.Session() as session:
         session.mount("https://", adapter)
+        session.mount("http://", adapter)
 
         response = session.get(url, params=params, timeout=20)
         response.raise_for_status()
