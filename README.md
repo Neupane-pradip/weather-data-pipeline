@@ -24,8 +24,21 @@ stores observations in PostgreSQL, and displays them in Streamlit.
 
 Open-Meteo API → Python → PostgreSQL
 
-## Next steps
+## Scheduled collection
 
-- Retry temporary API failures
-- Schedule regular weather collection
+The pipeline runs every 15 minutes using Windows Task Scheduler.
+
+Each run:
+- Fetches weather for Helsinki, London, and Berlin
+- Validates and transforms the response
+- Stores new records in PostgreSQL
+- Skips duplicate records
+- Writes progress and errors to pipeline.log
+
+The local setup requires the computer to be awake, the user
+to be logged in, PostgreSQL to be running, and internet access.
+
+Missed weather timestamps are not automatically backfilled.
+
+## Next steps
 - Build a Streamlit dashboard
